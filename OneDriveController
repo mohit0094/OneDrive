@@ -1,0 +1,121 @@
+public class OneDriveController {
+
+    private String authUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
+    private String tokenUrl = 'https://login.live.com/oauth20_token.srf';
+    private String clientId = 'ed9240be-7246-4366-a381-6877f5c39856';
+    private String clientSecret = '9ODZMqJaEjjofQ3vG7ZFVCC';
+    private String redirectUri = 'https://c.ap2.visual.force.com/apex/OneDrive';
+    private String code = '';
+    private String accessToken = '';
+    private String refreshToken = '';
+    private Map<String, Object> jsonResponserMap = new Map<String, Object>();
+    private List<MSOneDriveTokens__c> tokenList = new List<MSOneDriveTokens__c>();
+
+    public OneDriveController() {
+
+        retrievePreviousTokens();
+
+        code = ApexPages.currentPage().getParameters().get('code');
+
+        if(accessToken == '' && refreshToken == '' && code != '' && code != null) {
+            system.debug('acc ' + accessToken);
+            system.debug('ref ' + refreshToken);
+            system.debug(code);
+            accessAndRefreshToken();
+        }
+    }
+		
+		//To authorize the user and redirect to the microsoft login page for allowing or denying access
+    public PageReference authorize() {
+
+        PageReference pg = new PageReference(authUrl + '?client_id=' + clientId + '&scope=files.readwrite.all offline_access&response_type=code&redirect_uri=' + redirectUri);
+      return pg;
+    }
+		
+		//To get the new access and refresh tokens
+    public void accessAndRefreshToken() {
+
+        Http http = new Http();
+        HttpRequest request = new HttpRequest();
+        HttpResponse response = new HttpResponse();
+        String body = 'client_id=' + clientId + '&redirect_uri=' + redirectUri + '&client_secret=' + clientSecret + '&code=' + code + '&grant_type=authorization_code';
+        String contentLength = String.valueOf(Blob.valueOf(body).size());
+
+        request.setEndpoint(tokenUrl); 
+        request.setMethod('POST');
+        request.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+        request.setBody(body);
+        request.setHeader('Content-Length', contentLength);
+        response = http.send(request);
+
+        jsonResponserMap = (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
+
+        for(String key : jsonResponserMap.keySet()) {
+            if(key == 'access_token') {
+                accessToken = String.valueOf(jsonResponserMap.get(key));
+                system.debug(accessToken);
+                system.debug(accessToken.length());
+            }
+            if(key == 'refresh_token') {
+                refreshToken = String.valueOf(jsonResponserMap.get(key));
+                system.debug(refreshToken);
+                system.debug(refreshToken.length());
+            }
+        }
+
+        system.debug(response.getBody());
+    }
+
+		//To retrieve the access tokens and refresh tokens if the user is already logged in
+    public void retrievePreviousTokens() {
+
+        tokenList = [SELECT Name, AccessToken__c, RefreshToken__c FROM MSOneDriveTokens__c];
+        system.debug(tokenList);
+        if(tokenList != null && !tokenList.isEmpty()) {
+            accessToken = tokenList[0].AccessToken__c;
+            refreshToken = tokenList[0].RefreshToken__c;
+            system.debug(tokenList[0]);
+        }
+    }
+		
+		//To store the access token and refresh token to the custom setting for using in the code
+    public void fillTokensToCustomSetting() {
+
+        tokenList = [SELECT Name, AccessToken__c, RefreshToken__c FROM MSOneDriveTokens__c];
+        if(tokenList != null && !tokenList.isEmpty()) {
+
+            tokenList[0].Name = 'appTokens';
+            tokenList[0].AccessToken__c = accessToken;
+            tokenList[0].RefreshToken__c = refreshToken;
+            update tokenList[0];
+        }
+
+        else if(tokenList != null && tokenList.isEmpty()) {
+
+            MSOneDriveTokens__c temp = new MSOneDriveTokens__c(Name = 'appTokens', AccessToken__c = accessToken, RefreshToken__c = refreshToken);
+            insert temp;
+        }
+
+    }
+		
+		//To retrieve the new access and refresh tokens using the previous refresh token
+    public void newAccesAndRefreshToken() {
+
+        Http http = new Http();
+        HttpRequest request = new HttpRequest();
+        HttpResponse response = new HttpResponse();
+        String body = 'client_id=' + clientId + '&redirect_uri=' + redirectUri + '&client_secret=' + clientSecret + '&refresh_token=' + refreshToken + '&grant_type=refresh_token';
+        String contentLength = String.valueOf(Blob.valueOf(body).size());
+
+        request.setEndpoint(tokenUrl); 
+        request.setMethod('POST');
+        request.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+        request.setBody(body);
+        request.setHeader('Content-Length', contentLength);
+        response = http.send(request);
+
+        system.debug(response.getBody());
+
+        fillTokensToCustomSetting();
+    }
+}
