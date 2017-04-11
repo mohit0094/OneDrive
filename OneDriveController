@@ -25,14 +25,14 @@ public class OneDriveController {
         }
     }
 		
-		//To authorize the user and redirect to the microsoft login page for allowing or denying access
+    //To authorize the user and redirect to the microsoft login page for allowing or denying access
     public PageReference authorize() {
 
         PageReference pg = new PageReference(authUrl + '?client_id=' + clientId + '&scope=files.readwrite.all offline_access&response_type=code&redirect_uri=' + redirectUri);
       return pg;
     }
 		
-		//To get the new access and refresh tokens
+    //To get the new access and refresh tokens
     public void accessAndRefreshToken() {
 
         Http http = new Http();
@@ -66,7 +66,7 @@ public class OneDriveController {
         system.debug(response.getBody());
     }
 
-		//To retrieve the access tokens and refresh tokens if the user is already logged in
+    //To retrieve the access tokens and refresh tokens if the user is already logged in
     public void retrievePreviousTokens() {
 
         tokenList = [SELECT Name, AccessToken__c, RefreshToken__c FROM MSOneDriveTokens__c];
@@ -78,7 +78,7 @@ public class OneDriveController {
         }
     }
 		
-		//To store the access token and refresh token to the custom setting for using in the code
+    //To store the access token and refresh token to the custom setting for using in the code
     public void fillTokensToCustomSetting() {
 
         tokenList = [SELECT Name, AccessToken__c, RefreshToken__c FROM MSOneDriveTokens__c];
@@ -98,7 +98,7 @@ public class OneDriveController {
 
     }
 		
-		//To retrieve the new access and refresh tokens using the previous refresh token
+    //To retrieve the new access and refresh tokens using the previous refresh token
     public void newAccesAndRefreshToken() {
 
         Http http = new Http();
